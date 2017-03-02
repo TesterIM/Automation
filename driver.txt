@@ -1,0 +1,117 @@
+''
+''                                         ''
+	' Script ID				USG_Automation_Suite_Driver
+	' Date				  
+   	' Author			 	Idris Merchant
+	' Post-Conditions	 	None
+	' Data Files			Test Data file and Module_controller.xlsx
+	' Prerequisites 	 	Test Data file and Module_controller.xlsx must be closed before running this script.
+	
+	'Assumptions:
+'There is no unsaved test currently open in UFT.
+
+
+Dim qtApp 'As QuickTest.Application ' Declare the Application object variable
+Dim qtRepositories 'As QuickTest.ObjectRepositories ' Declare an action's object repositories collection variable
+Dim lngPosition
+
+' Open UFT
+Set qtApp = CreateObject("QuickTest.Application") ' Create the Application object
+qtApp.Launch ' Launch UFT
+qtApp.Visible = True ' Set UFT to be visible
+
+
+TimeStamp=Replace(Replace(Replace(Now,"/","_"),":","_")," ","_")
+
+Set oXl=CreateObject("Excel.Application")
+Set oWb=oXl.Workbooks.Open("G:\IT\QA\Automation Scripts\USG_Automation\IM_Module_Controller_New.xlsx")
+Set MainSheet=oWb.worksheets(1)
+
+ModuleCount=MainSheet.usedrange.rows.count
+For i=2 to ModuleCount
+  ModuleStatus=MainSheet.Cells(i,2)
+
+  If Lcase (ModuleStatus)="yes" Then
+	ModuleName=MainSheet.Cells(i,1)
+    	MainSheet.Hyperlinks.Add MainSheet.Cells(i,1),"",ModuleName & "!A1"
+    	Set ModuleSheet=oWb.WorkSheets(ModuleName)
+    	TestCount=ModuleSheet.usedrange.rows.count
+   
+	 For j=2 to TestCount
+		TestStatus=ModuleSheet.Cells(j,2)
+		If Lcase (TestStatus)="yes" Then
+			On Error Resume Next
+			FWPath = ModuleSheet.Cells(j, 5)
+                	ResFolder = ModuleSheet.Cells(j, 6)
+	                ResPath = FWPath & "\" & ResFolder
+        	        strFunctionLibrary = ModuleSheet.Cells(j, 7)
+                	strFunctionLibrarypath = FWPath & "\Function_Library\" & strFunctionLibrary
+	                strORName = ModuleSheet.Cells(j, 8)
+        	        strORpath = FWPath & "\Object_Repository\" & strORName
+
+			TestName=ModuleSheet.Cells(j,1) 'first column for Test Case
+
+			qtApp.Open FWPath &"\Test_Scripts\"& ModuleName &"\"& TestName
+
+			'Removing the Library file and adding the library file 
+			qtApp.Test.Settings.Resources.Libraries.RemoveAll
+			qtApp.Test.Settings.Resources.Libraries.Add strFunctionLibrarypath			
+
+			'qtApp.Test.Settings.Resources.Libraries.Add FWPath & Function_Library&Function_Library_IM.txt
+
+			'qtApp.Test.Settings.Resources.Libraries.Add FWPath & Function_Library&SFA_Function_Library_IM.txt
+
+			'qtApp.Test.Settings.Resources.Libraries.Add FWPath & Function_Library&USG_Answers_Function_Library - Copy.txt
+
+
+			'Adding Object repository at run time
+			Set qtRepositories = qtApp.Test.Actions("Action1").ObjectRepositories ' Get the object repositories collection object of the "Action1" action
+			qtRepositories.RemoveAll 
+			qtRepositories.Add strORpath
+
+			'Setting the environment path
+			qtApp.Test.Environment("FWPath")= FWPath
+	        	qtApp.Test.Environment("ResPath")= ResPath			
+			qtApp.Test.Environment("Test")= TestName
+			qtApp.Test.Environment("ModuleName")= ModuleName
+			
+			
+			qtApp.Test.Run
+			
+			Status=qtApp.Test.LastRunResults.Status
+			If Status = Warning Then
+				Status = Passed
+			End If
+			ModuleSheet.Cells(j,3)=Status
+			If Status=Passed Then
+				ModuleSheet.Cells(j,3).Font.Colorindex=10
+			Else
+				ModuleSheet.Cells(j,3).Font.Colorindex=3
+			End If
+		Else
+			ModuleSheet.Cells(j,3)= Not Executed		
+		End If
+   	Next
+  End If
+Next
+
+MainSheet.Activate
+owb.Saveas ResPath &"\IM_SummaryResultOn_" & TimeStamp &".xlsx"
+oWb.close
+oXl.quit
+
+' Set the new object repository configuration as the default for all new actions
+'qtRepositories.SetAsDefault ' Set object repositories associated with the "Login" action as the default for all new actions
+
+'Save the test and close UFT
+'qtApp.Test.Save ' Save the test
+qtApp.Quit
+
+
+
+
+Set qtApp=Nothing
+Set oXl=Nothing
+Set oWb=Nothing
+
+
