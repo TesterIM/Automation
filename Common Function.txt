@@ -1,0 +1,236 @@
+'Set ODict=CreateObject("Scripting.Dictionary")
+'Set dateTimStamp=Day(date)& Monthname(month(Date) & Year(Date) & Hour(Time) & Minute(Time) & second(time)
+strExecution = "Manual"
+bFirstRun = True
+Set oDict = createobject("Scripting.dictionary")
+Dim strCurrStep
+Select Case strExecution
+ Case "Manual"
+	FWPath = "" 
+	
+'	FWPath = ""
+	ResPath = FWPath & "\Test_Results"
+ Case "Batch"
+	FWPath = Environment("FWPath")
+	ResPath = Environment("ResPath")
+	strTestName = Environment("Test")
+	strModuleName = Environment("ModuleName")
+End Select
+blnFlag=True
+
+'+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+'---------------------------------------------------------------------------------
+''********************************************************************************
+	' Function Name	:	fnGetTestData_DataTable
+	' Purpose		:	To get Test  Data from Data Table
+   	' Input 		:	SheetName,TestScriptName, TestDataColumnName
+   	' Returns		: 	Test Data
+   	' Author		: 	
+	' Created Date	: 	
+	' Modified Date : 
+''********************************************************************************
+Public Function fnGetTestData_DataTable (SheetName, TestScriptName, TestDataColumnName)
+'	bCheck = False
+
+	If bFirstRun Then
+			Set Xl = CreateObject("Excel.Application")
+			'Xl.Visible = True
+			Set Wb = Xl.Workbooks.Open(FWPath &"\Test_Data\Webmethods_Upgrade_Data_Table.xlsx")
+		
+		
+			Set Ws = Wb.Worksheets(SheetName)
+			iRowCount = Ws.UsedRange.Rows.Count
+			iColumnCount = Ws.UsedRange.Columns.Count
+		
+		'	Set TSCell = Ws.UsedRange.Find(TestScriptName)
+		'	iRowNo = TSCell.Row
+		
+			For i = 2 to iRowCount
+				getTestScriptName = Ws.Cells(i,1).Value
+				
+				If strcomp(getTestScriptName,TestScriptName,1)=0 Then
+					iRowNo = i
+					Exit For
+				End If
+			Next
+		
+		'	Set TDCell = Ws.UsedRange.Find(TestDataColumnName)
+		'	iClmNo = TDCell.Column
+		
+			For j = 1 to iColumnCount
+		'		getColumnHeader = Ws.Cells(1,j).Value
+		'		If getColumnHeader = TestDataColumnName Then
+		'			iClmNo = j
+		'			Exit For
+		
+				keyValue = Ws.Cells(1,j).value
+				itemValue = Ws.Cells(iRowNo,j).value
+'				'added by Idris to read the duplicate column name from source data
+'				If oDict.Exists(TestDataColumnName) Then
+'			        oDict.Remove TestDataColumnName
+'			    End If
+'			    
+				If not (oDict.Exists(keyValue)) Then
+					oDict.Add keyValue,itemValue
+				End If
+			Next
+			
+			bFirstRun = False	
+			'GetData = Ws.Cells(iRowNo,iClmNo).Value
+			
+		'	If Err.Number = 0 Then
+		'		bCheck = True
+		'	End If
+			Wb.Close
+		    Xl.Quit
+		
+		'	Set WCell = Nothing
+			Set WS = Nothing
+			Set Wb = Nothing
+			Set Xl = Nothing
+		End If 
+	fnGetTestData_DataTable = oDict.Item(TestDataColumnName)
+	Wait 2
+End Function
+'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+''********************************************************************************
+	' Function Name	:	fnWriteResultInExcel
+	' Purpose		:	To write result in excel sheet
+   	' Input 		:	strDescription,strStepName,strExptdResult,strActulResult,strResultStatus
+   	' Returns		: 	None
+   	' Author		: 	
+	' Created Date	: 	
+	' Modified Date : 
+''********************************************************************************
+Public Function fnWriteResultInExcel(strDescription,strStepName,strExptdResult,strActulResult,strResultStatus)
+	
+		If strStepName="Step 01" Then
+		strCurrStep = 1	
+	ElseIf len(strStepName) > 1 Then	
+		'strCurrStep = cint(split(strStepName," ")(1))
+		strCurrStep = strCurrStep + 1
+	ElseIf strStepName="" Then
+		strCurrStep = strCurrStep + 1
+		'strStepName = "Step "&(strPrevStep + 1)
+	End If
+
+	If len(strCurrStep) = 1 Then
+		strCurrStep = "0"&strCurrStep
+	End If
+	strStepName = "Step "&(strCurrStep)
+	strCurrStep = cint(strCurrStep)
+	
+	dt = Day(Date)&MonthName(Month(Date))&Year(Date)
+	
+	Set objXl = CreateObject("Excel.Application")
+	'objXl.Visible = True
+
+	Set Fso = CreateObject("Scripting.FileSystemObject")
+	'If Fso.FileExists("C:\USG_Automation\Results\Result_"&dt&".xlsx") Then
+	If Fso.FileExists(ResPath & "\DetailResult_"&dt&".xlsx") Then
+		'Set objWb = objXl.Workbooks.Open("C:\USG_Automation\Results\Result_"&dt&".xlsx")
+		Set objWb = objXl.Workbooks.Open(ResPath & "\DetailResult_"&dt&".xlsx")
+	Else
+		Set objWb = objXl.Workbooks.Add
+		Set objWs = objWb.Worksheets(1)
+		objWs.Name = ("TestResult")
+		objWs.Cells(1,1) = "TestScriptName"
+		objWs.Cells(1,1).ColumnWidth=30
+		objWs.Cells(1,2) = "ModuleName"
+		objWs.Cells(1,2).ColumnWidth=12
+		objWs.Cells(1,3) = "Description"
+		objWs.Cells(1,3).ColumnWidth=40
+		objWs.Cells(1,4) = "StepName"
+		objWs.Cells(1,4).ColumnWidth=11
+		objWs.Cells(1,5) = "ExpectedResult"
+		objWs.Cells(1,5).ColumnWidth=40
+		objWs.Cells(1,6) = "ActualResult"
+		objWs.Cells(1,6).ColumnWidth=40
+		objWs.Cells(1,7) = "ResultStatus"
+		objWs.Cells(1,7).ColumnWidth=11
+		objWs.Cells(1,8) = "Date and Time"
+		objWs.Cells(1,8).ColumnWidth=14		
+		
+		objWs.Range("A1:H1").Font.Bold = True
+		objWs.Range("A1:H1").Interior.Color = VBYellow
+		objWs.Range("A1:H1").Borders.Color = VBBlack
+		objWs.Range("A2").Select							
+		objXl.ACTIVEWindow.FreezePanes=True
+		objWb.SaveAs(ResPath & "\DetailResult_"&dt&".xlsx")
+	End If
+
+	Set objWs = objWb.Worksheets("TestResult")
+	iRowCount = objWs.UsedRange.Rows.Count
+	'objWs.Cells(iRowCount+1,1).Value = strTestName
+	If Instr(strStepName,"01") <> 0  Then
+		objWs.Cells(iRowCount+1,1).Value = strTestName
+		objWs.Cells(iRowCount+1,2).Value = strModuleName
+		objWs.Cells(iRowCount+1,3).Value = strDescription
+	End If
+	objWs.Cells(iRowCount+1,4).Value = strStepName
+	objWs.Cells(iRowCount+1,5).Value = strExptdResult
+	objWs.Cells(iRowCount+1,6).Value = strActulResult
+	objWs.Cells(iRowCount+1,7).Value = strResultStatus
+	objWs.Cells(iRowCount+1,8).Value = Now
+	
+	If Lcase(strResultStatus) = "fail" Then
+		objWs.Range("A"&iRowCount+1&":H"&iRowCount+1).Font.Color = VBRed
+	End If
+
+objWb.Save
+objXl.Quit
+Set objWb = Nothing
+Set objWs = Nothing
+End Function
+'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+''********************************************************************************
+	' Function Name	:	fnWriteTestData_InExcel
+	' Purpose		:	To Write Test  Data in data table
+   	' Input 		:	SheetName,TestScriptName, TestDataColumnName, ColumnData
+   	' Returns		: 	Test Data
+   	' Author		: 	
+	' Created Date	: 
+	' Modified Date : 
+''********************************************************************************
+Public Function fnWriteTestData_InExcel(SheetName, TestScriptName, TestDataColumnName, ColumnData)
+'	flag = False
+	Set Xl = CreateObject("Excel.Application")
+	'Xl.Visible = True
+	Set Wb = Xl.Workbooks.Open(FWPath &"\Test_Data\Webmethods_Upgrade_Data_Table.xlsx")
+	Set Ws = Wb.Worksheets(SheetName)
+	iRowCount = Ws.UsedRange.Rows.Count
+	iColumnCount = Ws.UsedRange.Columns.Count
+	'get row number
+	For i = 2 to iRowCount
+		getTestScriptName = Ws.Cells(i,1).Value
+		If getTestScriptName = TestScriptName Then
+			iRowNo = i
+			Exit For
+		End If
+	Next
+
+	'get column number
+	For j = 1 to iColumnCount
+		getColumnHeader = Ws.Cells(1,j).Value
+		If getColumnHeader = TestDataColumnName Then
+			iClmNo = j
+			Exit For
+		End If
+	Next
+
+	Ws.Cells(iRowNo,iClmNo).Value = ColumnData
+'	
+'	If Err.Number = 0 Then
+'		flag = True
+'	End If
+	Wb.Save
+	Wb.Close
+	Xl.Quit
+		
+'	fnGetTestData_InExcel = flag 
+	Wait 2
+End Function
+
+
